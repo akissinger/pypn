@@ -67,13 +67,13 @@ class Graph(object):
 
         #g.add_vertices(self.num_vertices())
         ty = self.types()
-        qs = self.positions()
+        ps = self.positions()
         rs = self.rows()
         maxr = self.depth()
         vtab = dict()
         for v in self.vertices():
             i = g.add_vertex(ty[v])
-            if v in qs: g.set_position(i,qs[v])
+            if v in ps: g.set_position(i,ps[v])
             if v in rs: 
                 if dual: g.set_row(i, maxr-rs[v])
                 else: g.set_row(i, rs[v])

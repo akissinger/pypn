@@ -32,23 +32,12 @@ except ImportError:
     except ImportError:
         in_webpage = False
 
-# Provides functions for displaying pyzx graphs in jupyter notebooks using d3
+# Provides functions for displaying hocc graphs in jupyter notebooks using d3
 
 _d3_display_seq = 0
 
 # javascript_location = '../js'
 
-# TODO: avoid duplicate (copied from drawing.py)
-def phase_to_s(a, t):
-    if (a == 0 and t != 3): return ''
-    if (a == 1 and t == 3): return ''
-    if not isinstance(a, Fraction):
-        a = Fraction(a)
-    ns = '' if a.numerator == 1 else str(a.numerator)
-    ds = '' if a.denominator == 1 else '/' + str(a.denominator)
-
-    # unicode 0x03c0 = pi
-    return ns + '\u03c0' + ds
 
 def draw(g, scale=None, auto_hbox=True, labels=False):
     global _d3_display_seq
@@ -76,8 +65,7 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
     nodes = [{'name': str(v),
               'x': (g.row(v) + 1) * scale,
               'y': (g.position(v) + 2) * scale,
-              't': g.type(v),
-              'phase': phase_to_s(g.phase(v), g.type(v)) }
+              't': g.type(v) }
              for v in g.vertices()]
     links = [{'source': str(g.edge_s(e)),
               'target': str(g.edge_t(e)),
@@ -88,8 +76,8 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
         <script type="text/javascript">
         require.config({{ baseUrl: "{1}",
                          paths: {{d3: "d3.v4.min"}} }});
-        require(['pyzx'], function(pyzx) {{
-            pyzx.showGraph('#graph-output-{0}',
+        require(['hocc'], function(hocc) {{
+            hocc.showGraph('#graph-output-{0}',
             JSON.parse('{2}'), {3}, {4}, {5}, {6}, {7}, {8});
         }});
         </script>
@@ -101,8 +89,8 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
     elif in_webpage:
         d = html.DIV(style={"overflow": "auto"}, id="graph-output-{}".format(seq))
         source = """
-        require(['pyzx'], function(pyzx) {{
-            pyzx.showGraph('#graph-output-{0}',
+        require(['hocc'], function(hocc) {{
+            hocc.showGraph('#graph-output-{0}',
             JSON.parse('{2}'), {3}, {4}, {5});
         }});
         """.format(seq, javascript_location, graphj, w, h, node_size)

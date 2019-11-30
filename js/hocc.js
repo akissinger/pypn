@@ -45,7 +45,6 @@ define(['d3'], function(d3) {
 
         // SETUP SVG ITEMS
 
-        // TODO: don't focus?
         var svg = d3.select(tag)
             //.attr("tabindex", 1)
             .on("keydown.brush", function() {shiftKey = d3.event.shiftKey || d3.event.metaKey;})
@@ -63,7 +62,7 @@ define(['d3'], function(d3) {
             .append('marker')
               .attr('id', "arrowhead")
               .attr('viewBox', '0 -5 10 10')
-              .attr('refX', node_size * 1.5)
+              .attr('refX', node_size * 3)
               .attr('refY', 0)
               .attr('orient', 'auto')
               .attr('markerWidth', 5)
@@ -77,18 +76,23 @@ define(['d3'], function(d3) {
         function path_data(d) {
             var s = "M " + d.source.x + " " + d.source.y;
 
-            if (d.num_edge_siblings == 1 || d.edge_index == (d.num_edge_siblings+1)/2) {
+            var edge_index = (d.flip_orientation) ?
+                d.num_edge_siblings - d.edge_index - 1 : d.edge_index;
+
+            var center_index = (d.num_edge_siblings-1)/2;
+
+            if (d.num_edge_siblings == 1 || edge_index == center_index) {
                 s += " L " + d.target.x + " " + d.target.y;
             } else {
                 var dx = d.target.x - d.source.x;
                 var dy = d.target.y - d.source.y;
                 var dist = Math.sqrt(dx * dx + dy * dy);
                 var rx = 1.1 * (dist / 2);
-                var ry = 1.8 * (dist / 2);
+                var ry = Math.abs(edge_index - center_index) * 1.5 * scale;//3.0 * (dist / 2);
                 var rotate_x = Math.atan2(dy,dx) * (180/Math.PI);
 
                 var bend_right;
-                if (d.edge_index < d.num_edge_siblings/2) {
+                if (edge_index < d.num_edge_siblings/2) {
                     bend_right = false;
                 } else {
                     bend_right = true;
@@ -133,10 +137,7 @@ define(['d3'], function(d3) {
 
         node.filter(function(d) { return d.t != 3; })
             .append("circle")
-            .attr("r", function(d) {
-               if (d.t == 0) return 0.5 * node_size;
-               else return node_size;
-            })
+            .attr("r", node_size)
             .attr("fill", function(d) { return nodeColor(d.t); })
             .attr("stroke", "black");
 

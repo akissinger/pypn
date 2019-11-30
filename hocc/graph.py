@@ -291,6 +291,12 @@ class Graph(object):
         for v in vertices:
             vs = list(self.graph[v])
             # remove all edges
+            for e in self.incident_edges(v):
+                del self._source[e]
+                del self._target[e]
+                if e in self._edata:
+                    del self._edata[e]
+
             for v1 in vs:
                 del self.graph[v][v1]
                 del self.graph[v1][v]

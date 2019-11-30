@@ -56,7 +56,7 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
         if scale > 50: scale = 50
         if scale < 20: scale = 20
 
-    node_size = 0.2 * scale
+    node_size = 0.1 * scale
     if node_size < 2: node_size = 2
 
     w = (g.depth() + 2) * scale
@@ -70,7 +70,8 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
     links = [{'source': str(g.edge_s(e)),
               'target': str(g.edge_t(e)),
               'edge_index': g.edge_index(e),
-              'num_edge_siblings': g.num_edge_siblings(e) } for e in g.edges()]
+              'num_edge_siblings': g.num_edge_siblings(e),
+              'flip_orientation': g.edge_s(e) > g.edge_t(e) } for e in g.edges()]
     graphj = json.dumps({'nodes': nodes, 'links': links})
     text = """
         <div style="overflow:auto" id="graph-output-{0}"></div>

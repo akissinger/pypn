@@ -69,7 +69,8 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
              for v in g.vertices()]
     links = [{'source': str(g.edge_s(e)),
               'target': str(g.edge_t(e)),
-              't': g.edge_type(e) } for e in g.edges()]
+              'edge_index': g.edge_index(e),
+              'num_edge_siblings': g.num_edge_siblings(e) } for e in g.edges()]
     graphj = json.dumps({'nodes': nodes, 'links': links})
     text = """
         <div style="overflow:auto" id="graph-output-{0}"></div>
@@ -78,11 +79,10 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
                          paths: {{d3: "d3.v4.min"}} }});
         require(['hocc'], function(hocc) {{
             hocc.showGraph('#graph-output-{0}',
-            JSON.parse('{2}'), {3}, {4}, {5}, {6}, {7}, {8});
+            JSON.parse('{2}'), {3}, {4}, {5}, {6}, {7});
         }});
         </script>
         """.format(seq, javascript_location, graphj, w, h, scale, node_size,
-            'true' if auto_hbox else 'false',
             'true' if labels else 'false')
     if in_notebook:
         display(HTML(text))

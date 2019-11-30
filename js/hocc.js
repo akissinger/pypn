@@ -18,7 +18,7 @@ define(['d3'], function(d3) {
     }
 
     return {
-    showGraph: function(tag, graph, width, height, scale, node_size, auto_hbox, show_labels) {
+    showGraph: function(tag, graph, width, height, scale, node_size, show_labels) {
         var ntab = {};
 
         graph.nodes.forEach(function(d) {
@@ -45,23 +45,79 @@ define(['d3'], function(d3) {
 
         // SETUP SVG ITEMS
 
+        // TODO: don't focus?
         var svg = d3.select(tag)
-            .attr("tabindex", 1)
+            //.attr("tabindex", 1)
             .on("keydown.brush", function() {shiftKey = d3.event.shiftKey || d3.event.metaKey;})
             .on("keyup.brush", function() {shiftKey = d3.event.shiftKey || d3.event.metaKey;})
-            .each(function() { this.focus(); })
+            //.each(function() { this.focus(); })
             .append("svg")
             .attr("style", "max-width: none; max-height: none")
             .attr("width", width)
             .attr("height", height);
 
+        svg.append('defs')
+            // .selectAll('marker')
+            //   .data(['end'])
+            //   .enter()
+            .append('marker')
+              .attr('id', "arrowhead")
+              .attr('viewBox', '0 -5 10 10')
+              .attr('refX', node_size * 1.5)
+              .attr('refY', 0)
+              .attr('orient', 'auto')
+              .attr('markerWidth', 5)
+              .attr('markerHeight', 5)
+              .attr('markerUnits', "strokeWidth")
+              .attr('xoverflow','visible')
+              .append('path')
+              .attr('d', 'M0,-5L10,0L0,5')
+              .attr('fill', '#000');
+
+        function path_data(d) {
+            var s = "M " + d.source.x + " " + d.source.y;
+
+            if (d.num_edge_siblings == 1 || d.edge_index == (d.num_edge_siblings+1)/2) {
+                s += " L " + d.target.x + " " + d.target.y;
+            } else {
+                var dx = d.target.x - d.source.x;
+                var dy = d.target.y - d.source.y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                var rx = 1.1 * (dist / 2);
+                var ry = 1.8 * (dist / 2);
+                var rotate_x = Math.atan2(dy,dx) * (180/Math.PI);
+
+                var bend_right;
+                if (d.edge_index < d.num_edge_siblings/2) {
+                    bend_right = false;
+                } else {
+                    bend_right = true;
+                }
+
+                // always take the short arc, then choose direction based on edge index
+                var which_arc = bend_right ? "0 1" : "0 0";
+                s += " A " + rx + " " + ry + " " + rotate_x + " " + which_arc + " " + d.target.x + " " + d.target.y;
+            }
+
+            return s;
+        }
+
+        // var link = svg.append("g")
+        //     .attr("class", "link")
+        //     .selectAll("line")
+        //     .data(graph.links)
+        //     .enter().append("line")
+        //     .attr("stroke", "black")
+        //     .attr("style", "stroke-width: 1.5px");
         var link = svg.append("g")
             .attr("class", "link")
-            .selectAll("line")
+            .selectAll("path")
             .data(graph.links)
-            .enter().append("line")
-            .attr("stroke", function(d) { return edgeColor(d.t); })
-            .attr("style", "stroke-width: 1.5px");
+            .enter().append("path")
+            .attr("stroke", "black")
+            .attr("fill", "none")
+            .attr("style", "stroke-width: 1.5px")
+            .attr('marker-end','url(#arrowhead)');
 
         var brush = svg.append("g")
             .attr("class", "brush");
@@ -84,14 +140,6 @@ define(['d3'], function(d3) {
             .attr("fill", function(d) { return nodeColor(d.t); })
             .attr("stroke", "black");
 
-        var hbox = node.filter(function(d) { return d.t == 3; });
-
-        hbox.append("rect")
-            .attr("x", -0.75 * node_size).attr("y", -0.75 * node_size)
-            .attr("width", node_size * 1.5).attr("height", node_size * 1.5)
-            .attr("fill", function(d) { return nodeColor(d.t); })
-            .attr("stroke", "black");
-
         // node.filter(function(d) { return d.phase != ''; })
         //     .append("text")
         //     .attr("y", 0.7 * node_size + 14)
@@ -111,46 +159,11 @@ define(['d3'], function(d3) {
                 .attr("fill", "#ccc");
         }
 
-        function update_hboxes() {
-            if (auto_hbox) {
-                var pos = {};
-                hbox.attr("transform", function(d) {
-                    // calculate barycenter of non-hbox neighbours, then nudge a bit
-                    // to the NE.
-                    var x=0,y=0,sz=0;
-                    for (var i = 0; i < d.nhd.length; ++i) {
-                        if (d.nhd[i].t != 3) {
-                            sz++;
-                            x += d.nhd[i].x;
-                            y += d.nhd[i].y;
-                        }
-                    }
-
-                    offset = 0.25 * scale;
-
-                    if (sz != 0) {
-                        x = (x/sz) + offset;
-                        y = (y/sz) - offset;
-
-                        while (pos[[x,y]]) {
-                            x += offset;
-                        }
-                        d.x = x;
-                        d.y = y;
-                        pos[[x,y]] = true;
-                    }
-
-                    return "translate("+d.x+","+d.y+")";
-                });
-            }
-        }
-
-        update_hboxes();
-
-        link.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
+        // link.attr("x1", function(d) { return d.source.x; })
+        //     .attr("y1", function(d) { return d.source.y; })
+        //     .attr("x2", function(d) { return d.target.x; })
+        //     .attr("y2", function(d) { return d.target.y; });
+        link.attr("d", path_data);
 
         // EVENTS FOR DRAGGING AND SELECTION
 
@@ -175,17 +188,13 @@ define(['d3'], function(d3) {
                         return "translate(" + d.x + "," + d.y +")";
                     });
 
-                update_hboxes();
+                link.filter(function(d) { return d.source.selected || d.target.selected; })
+                    .attr("d", path_data);
+                    
 
-                link.filter(function(d) { return d.source.selected ||
-                                            (auto_hbox && d.source.t == 3); })
-                    .attr("x1", function(d) { return d.source.x; })
-                    .attr("y1", function(d) { return d.source.y; });
-
-                link.filter(function(d) { return d.target.selected ||
-                                            (auto_hbox && d.target.t == 3); })
-                    .attr("x2", function(d) { return d.target.x; })
-                    .attr("y2", function(d) { return d.target.y; });
+                // link.filter(function(d) { return d.target.selected; })
+                //     .attr("x2", function(d) { return d.target.x; })
+                //     .attr("y2", function(d) { return d.target.y; });
 
                 // text.filter(function(d) { return d.selected; })
                 //     .attr("x", function(d) { return d.x; })

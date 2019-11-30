@@ -29,8 +29,11 @@ class Graph(object):
         self.inputs = []
         self.outputs = []
         self.graph = dict()
+        self._source = dict()
+        self._target = dict()
         self._vindex = 0
-        self.nedges = 0
+        self._eindex = 0
+
         self.ty = dict()
         self._pindex = dict()
         self._maxp = -1
@@ -98,22 +101,22 @@ class Graph(object):
         """Returns a new graph equal to the dual of this graph."""
         return self.copy(dual=True)
 
-    def compose(self, other):
-        """Inserts a circuit after this one. The amount of positions of the circuits must match."""
-        if self.position_count() != other.position_count():
-            raise TypeError("Circuits work on different position amounts")
-        self.normalise()
-        other = other.copy()
-        other.normalise()
-        for o in self.outputs:
-            q = self.position(o)
-            e = list(self.incident_edges(o))[0]
-            if self.edge_type(e) == 2: #hadamard edge
-                i = [v for v in other.inputs if other.position(v)==q][0]
-                e = list(other.incident_edges(i))[0]
-                other.set_edge_type(e, 3-other.edge_type(e)) # toggle the edge type
-        d = self.depth()
-        self.replace_subgraph(d-1,d,other)
+    # def compose(self, other):
+    #     """Inserts a circuit after this one. The amount of positions of the circuits must match."""
+    #     if self.position_count() != other.position_count():
+    #         raise TypeError("Circuits work on different position amounts")
+    #     self.normalise()
+    #     other = other.copy()
+    #     other.normalise()
+    #     for o in self.outputs:
+    #         q = self.position(o)
+    #         e = list(self.incident_edges(o))[0]
+    #         if self.edge_type(e) == 2: #hadamard edge
+    #             i = [v for v in other.inputs if other.position(v)==q][0]
+    #             e = list(other.incident_edges(i))[0]
+    #             other.set_edge_type(e, 3-other.edge_type(e)) # toggle the edge type
+    #     d = self.depth()
+    #     self.replace_subgraph(d-1,d,other)
 
     
 
@@ -153,50 +156,50 @@ class Graph(object):
         return self.inputs, self.outputs
 
 
-    def normalise(self):
-        """Puts every node connecting to an input/output at the correct position index and row."""
-        if not self.inputs:
-            self.auto_detect_boundary()
-        max_r = self.depth() - 1
-        if max_r <= 2: 
-            for o in self.outputs:
-                self.set_row(o,4)
-            max_r = self.depth() -1
-        claimed = []
-        for q,i in enumerate(sorted(self.inputs, key=self.position)):
-            self.set_row(i,0)
-            self.set_position(i,q)
-            #q = self.position(i)
-            n = list(self.neighbours(i))[0]
-            if self.type(n) in (1,2):
-                claimed.append(n)
-                self.set_row(n,1)
-                self.set_position(n, q)
-            else: #directly connected to output
-                e = self.edge(i, n)
-                t = self.edge_type(e)
-                self.remove_edge(e)
-                v = self.add_vertex(1,q,1)
-                self.add_edge((i,v),3-t)
-                self.add_edge((v,n), 2)
-                claimed.append(v)
-        for q, o in enumerate(sorted(self.outputs,key=self.position)):
-            #q = self.position(o)
-            self.set_row(o,max_r+1)
-            self.set_position(o,q)
-            n = list(self.neighbours(o))[0]
-            if n not in claimed:
-                self.set_row(n,max_r)
-                self.set_position(n, q)
-            else:
-                e = self.edge(o, n)
-                t = self.edge_type(e)
-                self.remove_edge(e)
-                v = self.add_vertex(1,q,max_r)
-                self.add_edge((o,v),3-t)
-                self.add_edge((v,n), 2)
+    # def normalise(self):
+    #     """Puts every node connecting to an input/output at the correct position index and row."""
+    #     if not self.inputs:
+    #         self.auto_detect_boundary()
+    #     max_r = self.depth() - 1
+    #     if max_r <= 2: 
+    #         for o in self.outputs:
+    #             self.set_row(o,4)
+    #         max_r = self.depth() -1
+    #     claimed = []
+    #     for q,i in enumerate(sorted(self.inputs, key=self.position)):
+    #         self.set_row(i,0)
+    #         self.set_position(i,q)
+    #         #q = self.position(i)
+    #         n = list(self.neighbours(i))[0]
+    #         if self.type(n) in (1,2):
+    #             claimed.append(n)
+    #             self.set_row(n,1)
+    #             self.set_position(n, q)
+    #         else: #directly connected to output
+    #             e = self.edge(i, n)
+    #             t = self.edge_type(e)
+    #             self.remove_edge(e)
+    #             v = self.add_vertex(1,q,1)
+    #             self.add_edge((i,v),3-t)
+    #             self.add_edge((v,n), 2)
+    #             claimed.append(v)
+    #     for q, o in enumerate(sorted(self.outputs,key=self.position)):
+    #         #q = self.position(o)
+    #         self.set_row(o,max_r+1)
+    #         self.set_position(o,q)
+    #         n = list(self.neighbours(o))[0]
+    #         if n not in claimed:
+    #             self.set_row(n,max_r)
+    #             self.set_position(n, q)
+    #         else:
+    #             e = self.edge(o, n)
+    #             t = self.edge_type(e)
+    #             self.remove_edge(e)
+    #             v = self.add_vertex(1,q,max_r)
+    #             self.add_edge((o,v),3-t)
+    #             self.add_edge((v,n), 2)
 
-        self.pack_rows()
+    #     self.pack_rows()
 
     def add_vertex(self, ty=0, row=-1, position=-1):
         """Add a single vertex to the graph and return its index.
@@ -208,53 +211,47 @@ class Graph(object):
         if row!=-1: self.set_row(v, row)
         return v
 
-    def add_edge(self, edge, edgetype=1):
-        """Adds a single edge of the given type (1=regular, 2=Hadamard edge)"""
-        self.add_edges([edge], edgetype)
+    def add_edge(self, source, target):
+        self.add_edges([(source, target)])
+        return self._eindex - 1
 
     def remove_vertex(self, vertex):
         """Removes the given vertex from the graph."""
         self.remove_vertices([vertex])
 
-    def remove_isolated_vertices(self):
-        """Deletes all vertices and vertex pairs that are not connected to any other vertex."""
-        rem = []
-        for v in self.vertices():
-            d = self.vertex_degree(v)
-            if d == 0:
-                rem.append(v)
-            if d == 1: # It has a unique neighbour
-                if v in rem: continue # Already taken care of
-                if self.type(v) == 0: continue # Ignore in/outputs
-                w = list(self.neighbours(v))[0]
-                if len(self.neighbours(w)) > 1: continue # But this neighbour has other neighbours
-                if self.type(w) == 0: continue # It's a state/effect
-                # At this point w and v are only connected to each other
-                rem.append(v)
-                rem.append(w)
-                et = self.edge_type(self.edge(v,w))
-        self.remove_vertices(rem)
-
-    def remove_edge(self, edge):
-        """Removes the given edge from the graph."""
-        self.remove_edge([edge])
+    # def remove_isolated_vertices(self):
+    #     """Deletes all vertices and vertex pairs that are not connected to any other vertex."""
+    #     rem = []
+    #     for v in self.vertices():
+    #         d = self.vertex_degree(v)
+    #         if d == 0:
+    #             rem.append(v)
+    #         if d == 1: # It has a unique neighbour
+    #             if v in rem: continue # Already taken care of
+    #             if self.type(v) == 0: continue # Ignore in/outputs
+    #             w = list(self.neighbours(v))[0]
+    #             if len(self.neighbours(w)) > 1: continue # But this neighbour has other neighbours
+    #             if self.type(w) == 0: continue # It's a state/effect
+    #             # At this point w and v are only connected to each other
+    #             rem.append(v)
+    #             rem.append(w)
+    #             et = self.edge_type(self.edge(v,w))
+    #     self.remove_vertices(rem)
 
     def vertex_set(self):
-        """Returns the vertices of the graph as a Python set. 
-        Should be overloaded if the backend supplies a cheaper version than this."""
+        """Returns the vertices of the graph as a Python set."""
         return set(self.vertices())
 
     def edge_set(self):
-        """Returns the edges of the graph as a Python set. 
-        Should be overloaded if the backend supplies a cheaper version than this."""
+        """Returns the edges of the graph as a Python set."""
         return set(self.edges())
 
     def edge_s(self, edge):
         """Returns the source of the given edge."""
-        return self.edge_st(edge)[0]
+        return self._source[edge]
     def edge_t(self, edge):
         """Returns the target of the given edge."""
-        return self.edge_st(edge)[1]
+        return self._target[edge]
 
     def set_position(self, vertex, q, r):
         """Set both the position index and row index of the vertex."""
@@ -271,25 +268,30 @@ class Graph(object):
         else: self._maxp = -1
         return self._maxp + 1
 
-    def add_vertices(self, amount):
+    def add_vertices(self, amount, typ=0):
         for i in range(self._vindex, self._vindex + amount):
             self.graph[i] = dict()
-            self.ty[i] = 0
+            self.ty[i] = typ
         self._vindex += amount
         return range(self._vindex - amount, self._vindex)
 
-    def add_edges(self, edges, edgetype=1):
+    def add_edges(self, edges):
         for s,t in edges:
-            self.nedges += 1
-            self.graph[s][t] = edgetype
-            self.graph[t][s] = edgetype
+            if not t in self.graph[s]:
+                self.graph[s][t] = [set(), set()]
+                self.graph[t][s] = [set(), set()]
+            self.graph[s][t][1].add(self._eindex)
+            self.graph[t][s][0].add(self._eindex)
+            self._source[self._eindex] = s
+            self._target[self._eindex] = t
+            self._eindex += 1
+        return range(self._eindex - len(edges), self._eindex)
 
     def remove_vertices(self, vertices):
         for v in vertices:
             vs = list(self.graph[v])
             # remove all edges
             for v1 in vs:
-                self.nedges -= 1
                 del self.graph[v][v1]
                 del self.graph[v1][v]
             # remove the vertex
@@ -305,10 +307,17 @@ class Graph(object):
         self.remove_vertices([vertex])
 
     def remove_edges(self, edges):
-        for s,t in edges:
-            self.nedges -= 1
-            del self.graph[s][t]
-            del self.graph[t][s]
+        for e in edges:
+            s,t = self.edge_st(e)
+            del self._source[e]
+            del self._target[e]
+
+            self.graph[s][t][1].remove(e)
+            self.graph[t][s][0].remove(e)
+            if len(self.graph[s][t][0]) == 0 and len(self.graph[s][t][1]) == 0:
+                del self.graph[s][t]
+            if len(self.graph[t][s][0]) == 0 and len(self.graph[t][s][1]) == 0:
+                del self.graph[t][s]
 
     def remove_edge(self, edge):
         self.remove_edges([edge])
@@ -317,7 +326,7 @@ class Graph(object):
         return len(self.graph)
 
     def num_edges(self):
-        return self.nedges
+        return len(self._source)
 
     def vertices(self):
         return self.graph.keys()
@@ -331,62 +340,77 @@ class Graph(object):
                 yield v
 
     def edges(self):
-        for v0,adj in self.graph.items():
-            for v1 in adj:
-                if v1 > v0: yield (v0,v1)
+        return self._source.keys()
 
-    def edges_in_range(self, start, end, safe=False):
-        """like self.edges, but only returns edges that belong to vertices 
-        that are only directly connected to other vertices with 
-        index between start and end.
-        If safe=True then it also checks that every neighbour is only connected to vertices with the right index"""
-        if not safe:
-            for v0,adj in self.graph.items():
-                if not (start<v0<end): continue
-                #verify that all neighbours are in range
-                if all(start<v1<end for v1 in adj):
-                    for v1 in adj:
-                        if v1 > v0: yield (v0,v1)
-        else:
-            for v0,adj in self.graph.items():
-                if not (start<v0<end): continue
-                #verify that all neighbours are in range, and that each neighbour
-                # is only connected to vertices that are also in range
-                if all(start<v1<end for v1 in adj) and all(all(start<v2<end for v2 in self.graph[v1]) for v1 in adj):
-                    for v1 in adj:
-                        if v1 > v0:
-                            yield (v0,v1)
-
-    def edge(self, s, t):
-        return (s,t) if s < t else (t,s)
-    def edge_set(self):
-        return set(self.edges())
+    # def edges_in_range(self, start, end, safe=False):
+    #     """like self.edges, but only returns edges that belong to vertices 
+    #     that are only directly connected to other vertices with 
+    #     index between start and end.
+    #     If safe=True then it also checks that every neighbour is only connected to vertices with the right index"""
+    #     if not safe:
+    #         for v0,adj in self.graph.items():
+    #             if not (start<v0<end): continue
+    #             #verify that all neighbours are in range
+    #             if all(start<v1<end for v1 in adj):
+    #                 for v1 in adj:
+    #                     if v1 > v0: yield (v0,v1)
+    #     else:
+    #         for v0,adj in self.graph.items():
+    #             if not (start<v0<end): continue
+    #             #verify that all neighbours are in range, and that each neighbour
+    #             # is only connected to vertices that are also in range
+    #             if all(start<v1<end for v1 in adj) and all(all(start<v2<end for v2 in self.graph[v1]) for v1 in adj):
+    #                 for v1 in adj:
+    #                     if v1 > v0:
+    #                         yield (v0,v1)
+    
     def edge_st(self, edge):
-        return edge
+        return (self._source[edge], self._target[edge])
+
+    def edge_index(self, edge):
+        s,t = self.edge_st(edge)
+        return (sum(1 for e1 in self.graph[s][t][0] if e1 < edge) +
+                sum(1 for e1 in self.graph[s][t][1] if e1 < edge))
+
+    def num_edge_siblings(self, edge):
+        s,t = self.edge_st(edge)
+        return len(self.graph[s][t][0]) + len(self.graph[s][t][1])
+
 
     def neighbours(self, vertex):
         return self.graph[vertex].keys()
 
     def vertex_degree(self, vertex):
-        return len(self.graph[vertex])
+        return len(self.in_edges(vertex)) + len(self.out_edges(vertex))
 
-    def incident_edges(self, vertex):
-        return [(vertex, v1) if v1 > vertex else (v1, vertex) for v1 in self.graph[vertex]]
+    def in_edges(self, v):
+        es = set()
+        for (w, (ie,oe)) in self.graph[v].items():
+            es.update(ie)
+        return es
+
+    def out_edges(self, v):
+        es = set()
+        for (w, (ie,oe)) in self.graph[v].items():
+            es.update(oe)
+        return es
+
+    def incident_edges(self, v):
+        es = set()
+        for (w, (ie,oe)) in self.graph[v].items():
+            es.update(ie)
+            es.update(oe)
+        return es
 
     def connected(self,v1,v2):
         return v2 in self.graph[v1]
 
-    def edge_type(self, e):
-        v1,v2 = e
-        try:
-            return self.graph[v1][v2]
-        except KeyError:
-            return 0
-
-    def set_edge_type(self, e, t):
-        v1,v2 = e
-        self.graph[v1][v2] = t
-        self.graph[v2][v1] = t
+    # def edge_type(self, e):
+    #     v1,v2 = e
+    #     try:
+    #         return self.graph[v1][v2]
+    #     except KeyError:
+    #         return 0
 
     def type(self, vertex):
         return self.ty[vertex]

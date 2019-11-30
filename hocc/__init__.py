@@ -15,4 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .graph import Graph
+from .expr import Var
 from . import d3
+from . import variables

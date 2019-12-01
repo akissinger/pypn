@@ -39,7 +39,7 @@ _d3_display_seq = 0
 # javascript_location = '../js'
 
 
-def draw(g, scale=None, auto_hbox=True, labels=False):
+def draw(g, scale=None, row_scale=4, labels=False):
     global _d3_display_seq
 
     if not in_notebook and not in_webpage: 
@@ -59,15 +59,17 @@ def draw(g, scale=None, auto_hbox=True, labels=False):
     node_size = 0.1 * scale
     if node_size < 2: node_size = 2
 
-    w = (g.depth() + 2) * scale
+    w = (g.depth() + 2) * scale * row_scale
     h = (g.position_count() + 3) * scale
 
     nodes = [{'name': str(v),
-              'x': (g.row(v) + 1) * scale,
+              'x': (g.row(v) + 1) * scale * row_scale,
               'y': (g.position(v) + 2) * scale,
               't': g.type(v) }
              for v in g.vertices()]
-    links = [{'source': str(g.edge_s(e)),
+    links = [{'id': str(e),
+              'label': str(g.edata(e, default='')),
+              'source': str(g.edge_s(e)),
               'target': str(g.edge_t(e)),
               'edge_index': g.edge_index(e),
               'num_edge_siblings': g.num_edge_siblings(e),

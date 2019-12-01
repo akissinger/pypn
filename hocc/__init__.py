@@ -16,5 +16,6 @@
 
 from .graph import Graph
 from .expr import Var
+from .proofnet import decompose
 from . import d3
 from . import variables

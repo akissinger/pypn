@@ -1,28 +1,33 @@
 
 class Expr(object):
     def __init__(self):
-        self.ch = []
         self.prec = -1
+
+    def children(self):
+        return None
+
     def __add__(self, other):
-        if type(self) == Par and type(other) == Par:
+        if isinstance(self, Par) and isinstance(other, Par):
             return Par(self.ch + other.ch)
-        elif type(self) == Par:
+        elif isinstance(self, Par):
             return Par(self.ch + [other])
-        elif type(other) == Par:
+        elif isinstance(other, Par):
             return Par([self] + other.ch)
         else:
             return Par([self, other])
     def __mul__(self, other):
-        if type(self) == Tensor and type(other) == Tensor:
+        if isinstance(self, Tensor) and isinstance(other, Tensor):
             return Tensor(self.ch + other.ch)
-        elif type(self) == Tensor:
+        elif isinstance(self, Tensor):
             return Tensor(self.ch + [other])
-        elif type(other) == Tensor:
+        elif isinstance(other, Tensor):
             return Tensor([self] + other.ch)
         else:
             return Tensor([self, other])
     def __repr__(self):
         return "Expr(" + str(self) + ")"
+    def __str__(self):
+        return ""
     def __gt__(self, other):
         return ~self + other
 
@@ -44,7 +49,9 @@ class Par(Expr):
     def __invert__(self):
         return Tensor([~c for c in self.ch])
     def __str__(self):
-        return ' + '.join([str(c) if type(c) == Var else '(' + str(c) + ')' for c in self.ch])
+        return ' + '.join([str(c) if isinstance(c, Var) else '(' + str(c) + ')' for c in self.ch])
+    def children(self):
+        return self.ch
 
 class Tensor(Expr):
     def __init__(self, ch):
@@ -53,5 +60,7 @@ class Tensor(Expr):
     def __invert__(self):
         return Par([~c for c in self.ch])
     def __str__(self):
-        return ' * '.join([str(c) if type(c) == Var else '(' + str(c) + ')' for c in self.ch])
+        return ' * '.join([str(c) if isinstance(c, Var) else '(' + str(c) + ')' for c in self.ch])
+    def children(self):
+        return self.ch
 

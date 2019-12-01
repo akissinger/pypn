@@ -75,14 +75,14 @@ class Graph(object):
         maxr = self.depth()
         vtab = dict()
         for v in self.vertices():
-            i = g.add_vertex(ty[v])
+            v1 = g.add_vertex(ty[v])
             if v in ps: g.set_position(i,ps[v])
             if v in rs: 
                 if dual: g.set_row(i, maxr-rs[v])
                 else: g.set_row(i, rs[v])
-            vtab[v] = i
-            for k in self.vdata_keys(v):
-                g.set_vdata(i, k, self.vdata(v, k))
+            vtab[v] = v1
+            if v in self._vdata:
+                g.set_vdata(v1, self._vdata[v])
 
         for i in self.inputs:
             if dual: g.outputs.append(vtab[i])
@@ -91,10 +91,13 @@ class Graph(object):
             if dual: g.inputs.append(vtab[o])
             else: g.outputs.append(vtab[o])
         
-        etab = {e:(vtab[self.edge_s(e)],vtab[self.edge_t(e)]) for e in self.edges()}
-        g.add_edges(etab.values())
-        for e,(s,t) in etab.items():
-            g.set_edge_type(g.edge(s,t), self.edge_type(e))
+        for e in self.edges():
+            s,t = self.edge_st(e)
+            e1 = g.add_edge(vtab[s], vtab[t])
+            if e in self._edata:
+                g.set_edata(e1, self._edata[e])
+                
+        
         return g
 
     def dual(self):
@@ -211,8 +214,11 @@ class Graph(object):
         if row!=-1: self.set_row(v, row)
         return v
 
-    def add_edge(self, source, target):
-        self.add_edges([(source, target)])
+    def add_edge(self, source, target, data=None):
+        if data != None:
+            self.add_edges([(source, target)], [data])
+        else:
+            self.add_edges([(source, target)])
         return self._eindex - 1
 
     def remove_vertex(self, vertex):
@@ -275,8 +281,9 @@ class Graph(object):
         self._vindex += amount
         return range(self._vindex - amount, self._vindex)
 
-    def add_edges(self, edges):
-        for s,t in edges:
+    def add_edges(self, edges, data=None):
+        for i in range(len(edges)):
+            s,t = edges[i]
             if not t in self.graph[s]:
                 self.graph[s][t] = [set(), set()]
                 self.graph[t][s] = [set(), set()]
@@ -284,7 +291,10 @@ class Graph(object):
             self.graph[t][s][0].add(self._eindex)
             self._source[self._eindex] = s
             self._target[self._eindex] = t
+            if data != None:
+                self._edata[self._eindex] = data[i]
             self._eindex += 1
+
         return range(self._eindex - len(edges), self._eindex)
 
     def remove_vertices(self, vertices):
@@ -441,15 +451,27 @@ class Graph(object):
         if r > self._maxr: self._maxr = r
         self._rindex[vertex] = r
 
-    def vdata_keys(self, vertex):
-        return self._vdata.get(vertex, {}).keys()
-    def vdata(self, vertex, key, default=0):
+    def vdata(self, vertex, default=None):
         if vertex in self._vdata:
-            return self._vdata[vertex].get(key,default)
+            return self._vdata[vertex]
         else:
             return default
-    def set_vdata(self, vertex, key, val):
+
+    def set_vdata(self, vertex, val):
         if vertex in self._vdata:
-            self._vdata[vertex][key] = val
+            self._vdata[vertex] = val
         else:
-            self._vdata[vertex] = {key:val}
+            self._vdata[vertex] = val
+
+    def edata(self, edge, default=None):
+        if edge in self._edata:
+            return self._edata[edge]
+        else:
+            return default
+
+    def set_edata(self, edge, val):
+        if edge in self._edata:
+            self._edata[edge] = val
+        else:
+            self._edata[edge] = val
+

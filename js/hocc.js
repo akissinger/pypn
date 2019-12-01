@@ -56,10 +56,7 @@ define(['d3'], function(d3) {
             .attr("height", height);
 
         svg.append('defs')
-            // .selectAll('marker')
-            //   .data(['end'])
-            //   .enter()
-            .append('marker')
+           .append('marker')
               .attr('id', "arrowhead")
               .attr('viewBox', '0 -5 10 10')
               .attr('refX', node_size * 3)
@@ -118,10 +115,22 @@ define(['d3'], function(d3) {
             .selectAll("path")
             .data(graph.links)
             .enter().append("path")
-            .attr("stroke", "black")
+            .attr("id", function(d) { return "edge" + d.id; })
+            .attr("alt", function(d) { return d.label; })
+            .attr("stroke", "#aaa")
             .attr("fill", "none")
             .attr("style", "stroke-width: 1.5px")
             .attr('marker-end','url(#arrowhead)');
+
+        var link_label = svg.append("g")
+            .selectAll("text")
+            .data(graph.links)
+            .enter().append("text")
+            .append("textPath")
+            .attr("startOffset", "50%")
+            .attr("text-anchor", "middle")
+            .attr("href", function(d) { return "#edge" + d.id; })
+            .text(function(d) { return d.label; });
 
         var brush = svg.append("g")
             .attr("class", "brush");

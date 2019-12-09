@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import random
 from fractions import Fraction
 
 __all__ = ['init', 'draw']
@@ -34,12 +35,12 @@ except ImportError:
 
 # Provides functions for displaying hocc graphs in jupyter notebooks using d3
 
-_d3_display_seq = 0
+#_d3_display_seq = 0
 
 # javascript_location = '../js'
 
 
-def draw(g, scale=None, row_scale=4, labels=False):
+def draw(g, scale=None, row_scale=1, labels=False):
     global _d3_display_seq
 
     if not in_notebook and not in_webpage: 
@@ -48,13 +49,16 @@ def draw(g, scale=None, row_scale=4, labels=False):
     if not hasattr(g, 'vertices'):
         g = g.to_graph(zh=True)
 
-    _d3_display_seq += 1
-    seq = _d3_display_seq
+    #_d3_display_seq += 1
+
+    # generate a 'unique' id for this graph
+    seq = random.randint(0,1000000000) #_d3_display_seq
 
     if scale == None:
-        scale = 800 / (g.depth() + 2)
-        if scale > 50: scale = 50
-        if scale < 20: scale = 20
+        scale = 50
+        # scale = 800 / (g.depth() + 2)
+        # if scale > 50: scale = 50
+        # if scale < 20: scale = 20
 
     node_size = 0.1 * scale
     if node_size < 2: node_size = 2
@@ -74,28 +78,22 @@ def draw(g, scale=None, row_scale=4, labels=False):
               'edge_index': g.edge_index(e),
               'num_edge_siblings': g.num_edge_siblings(e),
               'flip_orientation': g.edge_s(e) > g.edge_t(e) } for e in g.edges()]
-    graphj = json.dumps({'nodes': nodes, 'links': links})
+    arcs = [{'source': str(e1),
+             'target': str(e2),
+             'end': end} for e1,e2,end in g.arcs()]
+    graphj = json.dumps({'nodes': nodes, 'links': links, 'arcs': arcs})
     text = """
         <div style="overflow:auto" id="graph-output-{0}"></div>
         <script type="text/javascript">
         require.config({{ baseUrl: "{1}",
                          paths: {{d3: "d3.v4.min"}} }});
         require(['hocc'], function(hocc) {{
-            hocc.showGraph('#graph-output-{0}',
+            hocc.showGraph('{0}', '#graph-output-{0}',
             JSON.parse('{2}'), {3}, {4}, {5}, {6}, {7});
         }});
         </script>
         """.format(seq, javascript_location, graphj, w, h, scale, node_size,
             'true' if labels else 'false')
-    if in_notebook:
-        display(HTML(text))
-    elif in_webpage:
-        d = html.DIV(style={"overflow": "auto"}, id="graph-output-{}".format(seq))
-        source = """
-        require(['hocc'], function(hocc) {{
-            hocc.showGraph('#graph-output-{0}',
-            JSON.parse('{2}'), {3}, {4}, {5});
-        }});
-        """.format(seq, javascript_location, graphj, w, h, node_size)
-        s = html.SCRIPT(source, type="text/javascript")
-        return d,s
+    
+    display(HTML(text))
+    

@@ -18,8 +18,9 @@ define(['d3'], function(d3) {
     }
 
     return {
-    showGraph: function(tag, graph, width, height, scale, node_size, show_labels) {
+    showGraph: function(graph_id, tag, graph, width, height, scale, node_size, show_labels) {
         var ntab = {};
+        var etab = {};
 
         graph.nodes.forEach(function(d) {
             ntab[d.name] = d;
@@ -28,11 +29,8 @@ define(['d3'], function(d3) {
             d.nhd = [];
         });
 
-        var spiders_and_boundaries = graph.nodes.filter(function(d) {
-            return d.t != 3;
-        });
-
         graph.links.forEach(function(d) {
+            etab[d.id] = d;
             var s = ntab[d.source];
             var t = ntab[d.target];
             d.source = s;
@@ -68,7 +66,7 @@ define(['d3'], function(d3) {
               .attr('xoverflow','visible')
               .append('path')
               .attr('d', 'M0,-5L10,0L0,5')
-              .attr('fill', '#000');
+              .attr('fill', '#999');
 
         function path_data(d) {
             var s = "M " + d.source.x + " " + d.source.y;
@@ -103,6 +101,43 @@ define(['d3'], function(d3) {
             return s;
         }
 
+        function arc_data(d) {
+            var len1 = 15;
+            var len2 = 15;
+            var r = 15;
+            var ctr;
+
+            // use the 'end' field to figure out if the arc is at the source
+            // or the target of the first edge
+            if (d.end == 1) {
+                len1 = d.sourcePath.getTotalLength() - len1;
+                ctr = d.v2;
+            } else {
+                ctr = d.v1;
+            }
+
+            // use the value for 'ctr' to figure out if arc is at the source
+            // or target of second edge.
+            if (ctr == d.v4) {
+                len2 = d.targetPath.getTotalLength() - len2;
+            }
+
+            var p1 = d.sourcePath.getPointAtLength(len1);
+            var p2 = d.targetPath.getPointAtLength(len2);
+
+            var s = "M " + p1.x + " " + p1.y;
+            //s += " L " + p2.x + " " + p2.y;
+
+            // figure out whether the acute angle is clockwise or anti-clockwise
+            var a = p2.x * p1.y + ctr.x * p2.y + p1.x * ctr.y;
+            var b = p1.x * p2.y + p2.x * ctr.y + ctr.x * p1.y;
+            var bend_right = a < b;
+
+            var which_arc = bend_right ? "0 1" : "0 0";
+            s += " A " + r + " " + r + " 0 " + which_arc + " " + p2.x + " " + p2.y;
+            return s;
+        }
+
         // var link = svg.append("g")
         //     .attr("class", "link")
         //     .selectAll("line")
@@ -115,9 +150,9 @@ define(['d3'], function(d3) {
             .selectAll("path")
             .data(graph.links)
             .enter().append("path")
-            .attr("id", function(d) { return "edge" + d.id; })
+            .attr("id", function(d) { return "edge_" + graph_id + '_' + d.id; })
             .attr("alt", function(d) { return d.label; })
-            .attr("stroke", "#aaa")
+            .attr("stroke", "#999")
             .attr("fill", "none")
             .attr("style", "stroke-width: 1.5px")
             .attr('marker-end','url(#arrowhead)');
@@ -126,11 +161,30 @@ define(['d3'], function(d3) {
             .selectAll("text")
             .data(graph.links)
             .enter().append("text")
+            .attr("dy", -2)
             .append("textPath")
             .attr("startOffset", "50%")
             .attr("text-anchor", "middle")
-            .attr("href", function(d) { return "#edge" + d.id; })
+            .attr("href", function(d) { return "#edge_" + graph_id + '_' + d.id; })
             .text(function(d) { return d.label; });
+
+        graph.arcs.forEach(function(d) {
+            d.sourcePath = document.getElementById('edge_' + graph_id + '_' + d.source);
+            d.targetPath = document.getElementById('edge_' + graph_id + '_' + d.target);
+            d.v1 = etab[d.source].source;
+            d.v2 = etab[d.source].target;
+            d.v3 = etab[d.target].source;
+            d.v4 = etab[d.target].target;
+        });
+
+        var arc = svg.append("g")
+            .attr("class", "arc")
+            .selectAll("path")
+            .data(graph.arcs)
+            .enter().append("path")
+            .attr("stroke", "#99f")
+            .attr("fill", "none")
+            .attr("style", "stroke-width: 1.5px");
 
         var brush = svg.append("g")
             .attr("class", "brush");
@@ -144,8 +198,7 @@ define(['d3'], function(d3) {
                 return "translate(" + d.x + "," + d.y +")";
             });
 
-        node.filter(function(d) { return d.t != 3; })
-            .append("circle")
+        node.append("circle")
             .attr("r", node_size)
             .attr("fill", function(d) { return nodeColor(d.t); })
             .attr("stroke", "black");
@@ -174,6 +227,7 @@ define(['d3'], function(d3) {
         //     .attr("x2", function(d) { return d.target.x; })
         //     .attr("y2", function(d) { return d.target.y; });
         link.attr("d", path_data);
+        arc.attr("d", arc_data);
 
         // EVENTS FOR DRAGGING AND SELECTION
 
@@ -200,6 +254,10 @@ define(['d3'], function(d3) {
 
                 link.filter(function(d) { return d.source.selected || d.target.selected; })
                     .attr("d", path_data);
+
+                arc.filter(function(d) { return d.v1.selected || d.v2.selected ||
+                                                d.v3.selected || d.v4.selected; })
+                   .attr("d", arc_data);
                     
 
                 // link.filter(function(d) { return d.target.selected; })

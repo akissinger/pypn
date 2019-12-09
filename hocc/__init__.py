@@ -15,7 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .graph import Graph
-from .expr import Var
-from .proofnet import decompose
+from .expr import Var, I
+from .proofnet import prove
+from .d3 import draw
 from . import d3
 from . import variables
+from . import proofnet

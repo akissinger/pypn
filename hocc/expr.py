@@ -6,6 +6,12 @@ class Expr(object):
     def children(self):
         return None
 
+    def depth(self):
+        if (self.children() == None):
+            return 1
+        else:
+            return 1 + max(c.depth() for c in self.children())
+
     def __add__(self, other):
         if isinstance(self, Par) and isinstance(other, Par):
             return Par(self.ch + other.ch)
@@ -28,8 +34,10 @@ class Expr(object):
         return "Expr(" + str(self) + ")"
     def __str__(self):
         return ""
-    def __gt__(self, other):
+    def __rshift__(self, other):
         return ~self + other
+    def __eq__(self, other):
+        return type(self) == type(other) and str(self) == str(other)
 
 
 class Var(Expr):
@@ -41,6 +49,16 @@ class Var(Expr):
         return ('~' if self.dual else '') + self.name
     def __invert__(self):
         return Var(self.name, not self.dual)
+
+class Unit(Expr):
+    def __init__(self):
+        self.prec = 100
+    def __str__(self):
+        return 'I'
+    def __invert__(self):
+        return self
+
+I = Unit()
 
 class Par(Expr):
     def __init__(self, ch):

@@ -106,10 +106,9 @@ class Graph(object):
             if e in self._edata:
                 g.set_edata(e1, self._edata[e])
 
-        for e1,e2,end in self.arcs():
-            g.add_arc(etab[e1], etab[e2], end)
+        for e1,e2,at_v in self.arcs():
+            g.add_arc(etab[e1], etab[e2], vtab[at_v])
 
-        
         return g
 
     def dual(self):
@@ -233,55 +232,151 @@ class Graph(object):
             self.add_edges([(source, target)])
         return self._eindex - 1
 
-    def add_arc(self, e1, e2, end):
-        """Adds an arc between edges. e1 and e2 are the edges, end=0 means the arc is at the source
-        of the edges, and end=1 means target."""
-
-        arcs = self._arcs[e1][e2] if e2 in self._arcs[e1] else (False,False)
-        if not arcs[end]: self._num_arcs += 1
-        arcs = (arcs[0] or (end == 0), arcs[1] or (end == 1))
-        self._arcs[e1][e2] = arcs
-        self._arcs[e2][e1] = arcs
-
-    def remove_arc(self, e1, e2, end):
-        """Removes an arc between edges. e1 and e2 are the edges, end=0 means the arc is at the source
-        of the edges, and end=1 means target."""
+    def add_arc(self, e1, e2, at_v):
+        """Adds an arc between edges. e1 and e2 are the edges, at_v indicates which
+        vertex to put the arc at (where -1 means both)."""
 
         if e2 in self._arcs[e1]:
-            arcs = self._arcs[e1][e2]
-            arcs = (arcs[0] and (end != 0), arcs[1] and (end != 1))
-            if arcs == (False, False):
+            if at_v == self._arcs[e1][e2]: return
+            else: at_v = -1
+        
+        self._arcs[e1][e2] = at_v
+        self._arcs[e2][e1] = at_v
+
+    def remove_arc(self, e1, e2, at_v):
+        """Removes an arc between edges e1 and e2 nearest to vertex at_v, where -1 means
+        both ends."""
+
+        if e2 in self._arcs[e1]:
+            if self._arcs[e1][e2] == -1 and at_v != -1:
+                s,t = self.edge_st(e1)
+                other_v = s if t == at_v else t
+                self._arcs[e1][e2] = other_v
+                self._arcs[e2][e1] = other_v
+            else:
                 del self._arcs[e1][e2]
                 del self._arcs[e2][e1]
-            else:
-                self._arcs[e1][e2] = arcs
-                self._arcs[e2][e1] = arcs
 
         
 
     def copy_arcs(self, e1, e2):
         """Copy the arcs from e1 on to e2. Note if there is already an arc from e1 to e2,
         this does not create a 'self-arc'."""
-        for e3, a in self._arcs[e1].items():
+        for e3, at_v in self._arcs[e1].items():
             if e2 == e3: continue
-            emin0 = e1 if e1 < e3 else e3
-            emin1 = e2 if e2 < e3 else e3
-            s0,t0 = self.edge_st(emin0)
-            s1,t1 = self.edge_st(emin1)
+            s,t = self.edge_st(e2)
 
-            if a[0]: self.add_arc(e2, e3, end=0 if s0 == s1 else 1)
-            if a[1]: self.add_arc(e2, e3, end=1 if t0 == t1 else 0)
+            if at_v == -1:
+                s1,t1 = self.edge_st(e3)
+                if (s == s1 and t == t1) or (s == t1 and t == s1):
+                    self.add_arc(e2, e3, -1)
+            elif s == at_v or t == at_v:
+                self.add_arc(e2, e3, at_v)
 
     def has_arc(self, e1, e2=None):
         """Return whether there is any arc between e1 and e2 (if e2 given), otherwise
         whether there are any arcs connected to e1."""
         if e2 == None:
-            return any(a[0] or a[1] for a in self._arcs[e1].values())
-        elif e2 in self._arcs[e1]:
-            return self._arcs[e1][e2][0] or self._arcs[e1][e2][1]
+            return len(self._arcs[e1]) != 0
         else:
-            return False
+            return e2 in self._arcs[e1]
 
+    def arcs_at_v(self, v):
+        for e in self.incident_edges(v):
+            for e1,at_v in self._arcs[e].items():
+                if e <= e1 and at_v == v: yield (e,e1)
+
+
+
+    def signalling_nhd(self, v):
+        ty = self.type(v)
+        es = []
+        if ty == 1 or ty == 3:
+            es += [(e,self.edge_s(e)) for e in self.in_edges(v)]
+        if ty == 2 or ty == 3:
+            es += [(e,self.edge_t(e)) for e in self.out_edges(v)]
+
+        nhd = []
+        for i in range(len(es)):
+            for j in range(i+1,len(es)):
+                # ex1,ex2 = self.edata(es[i][0]), self.edata(es[j][0])
+                v1,v2 = es[i][1], es[j][1]
+                if self.type(v1) != 0 and self.type(v2) != 0:
+                    # if ty == 3: nhd.append((v1,v2))
+                    # elif not (
+                    #     (ex1.negative() and ex2.negative()) or
+                    #     (ex1.positive() and ex2.positive())
+                    # ): nhd.append((v1,v2))
+                    nhd.append((v1,v2))
+        return nhd
+
+    def roots(self):
+        for v in self.vertices():
+            ie = self.in_edges(v)
+            if len(ie) == 1:
+                v1 = self.edge_s(next(iter(ie)))
+                if self.type(v1) == 0:
+                    yield v
+            else:
+                oe = self.out_edges(v)
+                if len(oe) == 1:
+                    v1 = self.edge_t(next(iter(oe)))
+                    if self.type(v1) == 0:
+                        yield v
+
+    def cut_edges(self, es):
+        # compute shifts for parallel edges before removing anything
+        stab = {e: self.edge_index(e) - (self.num_edge_siblings(e)-1)/2 for e in es}
+
+        for e in es:
+            vs, vt = self.edge_st(e)
+            shift = stab[e]
+            if vs > vt: shift *= -1
+            v_new1 = self.add_vertex(0,
+                row=(2*self.row(vs)+self.row(vt))/3.0,
+                position=(2*self.position(vs)+self.position(vt))/3.0 + shift)
+            v_new2 = self.add_vertex(0,
+                row=(self.row(vs)+2*self.row(vt))/3.0,
+                position=(self.position(vs)+2*self.position(vt))/3.0 + shift)
+            
+            e1 = self.add_edge(vs, v_new1)
+            e2 = self.add_edge(v_new2, vt)
+            self.copy_arcs(e, e1)
+            self.copy_arcs(e, e2)
+            self.set_edata(e1, self.edata(e))
+            self.set_edata(e2, self.edata(e))
+            self.remove_edge(e)
+
+    def cut_edge(self, e):
+        self.cut_edges([e])
+
+    def cut_vertex(self, v):
+        self.cut_edges([e
+            for e in self.incident_edges(v)
+              if self.type(self.edge_s(e)) != 0 and self.type(self.edge_t(e)) != 0])
+
+    def decompose_vertex(self, v):
+        #nhd = set()
+        ty = self.type(v)
+        for e in self.incident_edges(v):
+            vs, vt = self.edge_st(e)
+            v_other = vs if vt == v else vt
+            if self.type(v_other) == 0: self.remove_vertex(v_other)
+            else:
+                #if (ty == 1 and vt == v) or (ty == 2 and vs == v): nhd.add(v_other)
+                shift = self.edge_index(e) - (self.num_edge_siblings(e)-1)/2
+                if vs > vt: shift *= -1
+                v_new = self.add_vertex(0,
+                    row=(self.row(v)+self.row(v_other))/2.0,
+                    position=(self.position(v)+self.position(v_other))/2.0 + shift)
+                if vs == v:
+                    e1 = self.add_edge(v_new, vt)
+                else:
+                    e1 = self.add_edge(vs, v_new)
+                self.copy_arcs(e, e1)
+                self.set_edata(e1, self.edata(e))
+        self.remove_vertex(v)
+        # return nhd
 
     def remove_vertex(self, vertex):
         """Removes the given vertex from the graph."""
@@ -388,8 +483,7 @@ class Graph(object):
             del self._source[e]
             del self._target[e]
             for e1 in list(self._arcs[e]):
-                self.remove_arc(e,e1,end=0)
-                self.remove_arc(e,e1,end=1)
+                self.remove_arc(e,e1,at_v=-1)
             del self._arcs[e]
 
             self.graph[s][t][1].remove(e)
@@ -430,8 +524,13 @@ class Graph(object):
         for e1 in self.edges():
             for e2, a in self._arcs[e1].items():
                 if e1 <= e2:
-                    if a[0]: ar.append((e1,e2,0))
-                    if a[1]: ar.append((e1,e2,1))
+                    if a == -1:
+                        s,t = self.edge_st(e1)
+                        ar.append((e1,e2,s))
+                        ar.append((e1,e2,t))
+                    else:
+                        ar.append((e1,e2,a))
+
         return ar
 
     # def edges_in_range(self, start, end, safe=False):
@@ -551,29 +650,57 @@ class Graph(object):
         else:
             self._edata[edge] = val
 
-    def is_acyclic(self):
-        verts = set(self.vertices())
-        visited = set()
-        acyclic = True
+    def dfs(self, v, visited, visit=None, parent=None):
+        if visit != None: visit(v)
+        if not v in visited:
+            visited.add(v)
+            # traverse using edges to detect parallel & self-loops
+            for e in self.incident_edges(v):
+                s,t = self.edge_st(e)
+                v1 = s if s != v else t
+                if v1 == parent: continue
+                self.dfs(v1, visited, visit, parent=v)
 
-        def dfs(p, v):
-            if v in visited:
-                return False
-            else:
-                verts.remove(v)
-                visited.add(v)
-                
-                # traverse using edges to detect parallel & self-loops
-                for e in self.incident_edges(v):
-                    s,t = self.edge_st(e)
-                    v1 = s if s != v else t
-                    if v1 == p: continue
-                    elif not dfs(v, v1): return False # break loop on failure
-                return True
-        while len(verts) > 0:
-            if not dfs(None, next(iter(verts))):
-                return False
+
+    def component(self, v):
+        comp = set()
+        self.dfs(v, comp)
+        return comp
+
+    def connected(self, v1, v2):
+        def find(v):
+            if v == v2: raise Exception("found")
+            return True
+        try: self.dfs(v1, set(), find)
+        except Exception: return True
+        return False
+
+
+    def is_acyclic(self, from_v=None):
+        verts = set([from_v]) if from_v != None else set(self.vertices())
+        visited = set()
+
+        def check(v):
+            if v in visited: raise Exception("cycle")
+            verts.discard(v)
+
+        try:
+            while len(verts) > 0:
+                self.dfs(next(iter(verts)), visited, check)
+        except Exception:
+            return False
+        
         return True
+
+    def remove_acyclic(self):
+        verts = set(self.vertices())
+        while len(verts) > 0:
+            v = next(iter(verts))
+            comp = self.component(v)
+            verts -= comp
+            if self.is_acyclic(from_v=v):
+                self.remove_vertices(comp)
+
 
 
     def fuse_edges(self, e1, e2):
@@ -622,13 +749,13 @@ class Graph(object):
 
         self.remove_vertex(v1)
 
-    def contract1(self):
+    def contract1(self, safe=True):
         for e1,e2,end in self.arcs():
             if self.edge_s(e1) == self.edge_s(e2) and self.edge_t(e1) == self.edge_t(e2):
                 self.fuse_edges(e1, e2)
                 return True
         for e in self.edges():
-            #if self.has_arc(e): continue
+            if safe and self.has_arc(e): continue
             s,t = self.edge_st(e)
             if self.type(s) == 0 or self.type(t) == 0:
                 continue

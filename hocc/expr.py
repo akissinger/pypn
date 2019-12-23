@@ -1,8 +1,5 @@
 
 class Expr(object):
-    def __init__(self):
-        self.prec = -1
-
     def children(self):
         return None
 
@@ -38,21 +35,34 @@ class Expr(object):
         return ~self + other
     def __eq__(self, other):
         return type(self) == type(other) and str(self) == str(other)
+    def positive_var(self):
+        return isinstance(self, Var) and self.first_order and not self.dual
+    def negative_var(self):
+        return isinstance(self, Var) and self.first_order and self.dual
+    def positive(self):
+        if isinstance(self, Unit):
+            return True
+        elif isinstance(self, Var):
+            return self.first_order and not self.dual
+        elif isinstance(self, Tensor) or isinstance(self, Par):
+            return all(e.positive() for e in self.children())
+        else:
+            return False
+    def negative(self):
+        return (~self).positive()
 
 
 class Var(Expr):
-    def __init__(self, name, dual=False):
+    def __init__(self, name, dual=False, first_order=True):
         self.name = name
         self.dual = dual
-        self.prec = 100
+        self.first_order = first_order
     def __str__(self):
         return ('~' if self.dual else '') + self.name
     def __invert__(self):
-        return Var(self.name, not self.dual)
+        return Var(self.name, not self.dual, self.first_order)
 
 class Unit(Expr):
-    def __init__(self):
-        self.prec = 100
     def __str__(self):
         return 'I'
     def __invert__(self):
@@ -63,7 +73,6 @@ I = Unit()
 class Par(Expr):
     def __init__(self, ch):
         self.ch = list(ch)
-        self.prec = 1
     def __invert__(self):
         return Tensor([~c for c in self.ch])
     def __str__(self):
@@ -74,7 +83,6 @@ class Par(Expr):
 class Tensor(Expr):
     def __init__(self, ch):
         self.ch = list(ch)
-        self.prec = 2
     def __invert__(self):
         return Par([~c for c in self.ch])
     def __str__(self):

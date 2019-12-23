@@ -105,20 +105,16 @@ define(['d3'], function(d3) {
             var len1 = 15;
             var len2 = 15;
             var r = 15;
-            var ctr;
 
             // use the 'end' field to figure out if the arc is at the source
             // or the target of the first edge
-            if (d.end == 1) {
+            if (d.at_v == d.v2) {
                 len1 = d.sourcePath.getTotalLength() - len1;
-                ctr = d.v2;
-            } else {
-                ctr = d.v1;
             }
 
             // use the value for 'ctr' to figure out if arc is at the source
             // or target of second edge.
-            if (ctr == d.v4) {
+            if (d.at_v == d.v4) {
                 len2 = d.targetPath.getTotalLength() - len2;
             }
 
@@ -129,8 +125,8 @@ define(['d3'], function(d3) {
             //s += " L " + p2.x + " " + p2.y;
 
             // figure out whether the acute angle is clockwise or anti-clockwise
-            var a = p2.x * p1.y + ctr.x * p2.y + p1.x * ctr.y;
-            var b = p1.x * p2.y + p2.x * ctr.y + ctr.x * p1.y;
+            var a = p2.x * p1.y + d.at_v.x * p2.y + p1.x * d.at_v.y;
+            var b = p1.x * p2.y + p2.x * d.at_v.y + d.at_v.x * p1.y;
             var bend_right = a < b;
 
             var which_arc = bend_right ? "0 1" : "0 0";
@@ -175,6 +171,7 @@ define(['d3'], function(d3) {
             d.v2 = etab[d.source].target;
             d.v3 = etab[d.target].source;
             d.v4 = etab[d.target].target;
+            d.at_v = ntab[d.at_v];
         });
 
         var arc = svg.append("g")

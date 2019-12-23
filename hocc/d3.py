@@ -41,7 +41,10 @@ except ImportError:
 
 
 def draw(g, scale=None, row_scale=1, labels=False):
-    global _d3_display_seq
+    #global _d3_display_seq
+    if not g:
+        print("FAIL")
+        return
 
     if not in_notebook and not in_webpage: 
         raise Exception("This method only works when loaded in a webpage or Jupyter notebook")
@@ -80,7 +83,7 @@ def draw(g, scale=None, row_scale=1, labels=False):
               'flip_orientation': g.edge_s(e) > g.edge_t(e) } for e in g.edges()]
     arcs = [{'source': str(e1),
              'target': str(e2),
-             'end': end} for e1,e2,end in g.arcs()]
+             'at_v': str(at_v)} for e1,e2,at_v in g.arcs()]
     graphj = json.dumps({'nodes': nodes, 'links': links, 'arcs': arcs})
     text = """
         <div style="overflow:auto" id="graph-output-{0}"></div>

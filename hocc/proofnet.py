@@ -1,4 +1,6 @@
 import math
+from itertools import chain, combinations
+
 from .expr import Tensor, Par, Var, Unit
 from .graph import Graph
 
@@ -15,7 +17,7 @@ def decompose(e, g, row=0):
         if g.type(v1) == 1:
             for e1 in g.out_edges(v1):
                 for e2 in g.out_edges(v1):
-                    if e1 != e2: g.add_arc(e1, e2, end=0)
+                    if e1 != e2: g.add_arc(e1, e2, v1)
 
 
 
@@ -36,7 +38,7 @@ def compose(e, g, row=0):
         if g.type(v1) == 2:
             for e1 in g.in_edges(v1):
                 for e2 in g.in_edges(v1):
-                    if e1 != e2: g.add_arc(e1, e2, end=1)
+                    if e1 != e2: g.add_arc(e1, e2, v1)
 
     return vs, max_r
 
@@ -167,6 +169,81 @@ def switchings(g):
     rec(g)
     return sw
 
+def decompose_root(g):
+    g1 = g.copy()
+    rt = [(r, g1.signalling_nhd(r)) for r in g1.roots()]
+    for r,nhd in rt:
+        if len(nhd) == 0:
+            g1.decompose_vertex(r)
+            return g1
+    for r,nhd in rt:
+        g2 = g1.copy()
+        g2.decompose_vertex(r)
+        if all(not g2.connected(v1, v2) for v1,v2 in nhd): return g2
+
+    return None
+
+def decompose_checker(g):
+    g = g.copy()
+    while True:
+        g1 = decompose_root(g)
+        if g1 != None: g = g1
+        else: break
+    return all(g.type(v) == 0 or g.type(v) == 3 for v in g.vertices())
+
+def cut_positive_vars(g):
+    g = g.copy()
+    es = [e for e in g.edges()
+            if g.edata(e).positive_var() and
+               g.type(g.edge_s(e)) != 0 and
+               g.type(g.edge_t(e)) != 0]
+    powerset_es = chain.from_iterable(combinations(es, r) for r in range(len(es)+1))
+
+    for cut in powerset_es:
+        if len(cut) == 0: continue
+        found = True
+        g1 = g.copy()
+        g1.remove_edges(cut)
+        scomp = set()
+        tcomp = set()
+        for e in cut:
+            s,t = g.edge_st(e)
+            scomp |= g1.component(s)
+            tcomp |= g1.component(t)
+            if s in tcomp or t in scomp:
+                found = False
+                break
+        if found:
+            g.cut_edges(cut)
+            g.remove_acyclic()
+            return g
+    return None
+
+def cut_root(g):
+    g1 = g.copy()
+    rt = [(r, g1.signalling_nhd(r)) for r in g1.roots()]
+    for r,nhd in rt:
+        if len(nhd) == 0:
+            g1.cut_vertex(r)
+            g1.remove_acyclic()
+            return g1
+    for r,nhd in rt:
+        g2 = g1.copy()
+        g2.cut_vertex(r)
+        if all(not g2.connected(v1, v2) for v1,v2 in nhd):
+            g2.remove_acyclic()
+            return g2
+
+    return None
+
+def cut_checker(g):
+    g = g.copy()
+    while True:
+        g1 = cut_root(g) or cut_positive_vars(g)
+        if g1 == None: break
+        else: g = g1
+    return len(g.vertices()) == 0
+
 def switching_checker(g):
     return all(s.is_acyclic() for s in switchings(g))
 
@@ -176,10 +253,13 @@ def contraction_checker(g):
         pass
     return g1.is_point()
 
+def copy_boundary(g):
+    pass
+
 
 def prove(exp0, exp1, checker=None):
     if checker == None:
-        checker = switching_checker
+        checker = cut_checker
     g = Graph()
     vs, row = decompose(exp0, g)
     compose(exp1, g, row)

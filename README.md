@@ -10,4 +10,6 @@ The prover itself works best run inside of a Jupyter notebook. In that case, suc
 
 To see the basic features of the library/prover, check out [notebooks/Basics.ipynb](https://nbviewer.jupyter.org/github/akissinger/pypn/blob/master/notebooks/Basics.ipynb).
 
+PyPN arose as a weekend hack session based on some of the graph drawing features from [PyZX](https://github.com/Quantomatic/pyzx), a quantum circuit optimiser library. In recognition of that, here's a plane that says PYPN:
+
 ![PyPN](https://github.com/akissinger/pypn/raw/master/F-PYPN.jpg)

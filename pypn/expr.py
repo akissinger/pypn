@@ -36,14 +36,14 @@ class Expr(object):
     def __eq__(self, other):
         return type(self) == type(other) and str(self) == str(other)
     def positive_var(self):
-        return isinstance(self, Var) and self.first_order and not self.dual
+        return isinstance(self, Var) and self.atom and not self.dual
     def negative_var(self):
-        return isinstance(self, Var) and self.first_order and self.dual
+        return isinstance(self, Var) and self.atom and self.dual
     def positive(self):
         if isinstance(self, Unit):
             return True
         elif isinstance(self, Var):
-            return self.first_order and not self.dual
+            return self.atom and not self.dual
         elif isinstance(self, Tensor) or isinstance(self, Par):
             return all(e.positive() for e in self.children())
         else:
@@ -53,14 +53,14 @@ class Expr(object):
 
 
 class Var(Expr):
-    def __init__(self, name, dual=False, first_order=True):
+    def __init__(self, name, dual=False, atom=False):
         self.name = name
         self.dual = dual
-        self.first_order = first_order
+        self.atom = atom
     def __str__(self):
         return ('~' if self.dual else '') + self.name
     def __invert__(self):
-        return Var(self.name, not self.dual, self.first_order)
+        return Var(self.name, not self.dual, self.atom)
 
 class Unit(Expr):
     def __str__(self):

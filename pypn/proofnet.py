@@ -239,6 +239,14 @@ def cut_root(g):
 def cut_checker(g):
     g = g.copy()
     while True:
+        g1 = cut_root(g)
+        if g1 == None: break
+        else: g = g1
+    return len(g.vertices()) == 0
+
+def hocc_cut_checker(g):
+    g = g.copy()
+    while True:
         g1 = cut_root(g) or cut_positive_vars(g)
         if g1 == None: break
         else: g = g1
